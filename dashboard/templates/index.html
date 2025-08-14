@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<title>PAC3200 Dashboard</title>
+	<link rel="stylesheet" href="/static/css/style.css" />
+	<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+	<header>
+		<h1>PAC3200 Dashboard</h1>
+		<div class="status">
+			<span id="db-status">Checking database…</span>
+		</div>
+	</header>
+
+	<main>
+		<section class="cards">
+			<div class="card"><div class="label">Timestamp</div><div id="card-timestamp" class="value">—</div></div>
+			<div class="card"><div class="label">Total Active Power (W)</div><div id="card-power" class="value">—</div></div>
+			<div class="card"><div class="label">Frequency (Hz)</div><div id="card-frequency" class="value">—</div></div>
+			<div class="card"><div class="label">V1-N (V)</div><div id="card-v1" class="value">—</div></div>
+			<div class="card"><div class="label">V2-N (V)</div><div id="card-v2" class="value">—</div></div>
+			<div class="card"><div class="label">V3-N (V)</div><div id="card-v3" class="value">—</div></div>
+			<div class="card"><div class="label">I1 (A)</div><div id="card-i1" class="value">—</div></div>
+			<div class="card"><div class="label">I2 (A)</div><div id="card-i2" class="value">—</div></div>
+			<div class="card"><div class="label">I3 (A)</div><div id="card-i3" class="value">—</div></div>
+		</section>
+
+		<section class="charts">
+			<div class="chart">
+				<h3>Total Active Power</h3>
+				<canvas id="chart-power"></canvas>
+			</div>
+			<div class="chart">
+				<h3>Frequency</h3>
+				<canvas id="chart-frequency"></canvas>
+			</div>
+			<div class="chart">
+				<h3>Voltages V1/V2/V3 to N</h3>
+				<canvas id="chart-voltage"></canvas>
+			</div>
+			<div class="chart">
+				<h3>Currents L1/L2/L3</h3>
+				<canvas id="chart-current"></canvas>
+			</div>
+		</section>
+	</main>
+
+	<script src="/static/js/app.js"></script>
+</body>
+</html>
