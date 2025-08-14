@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>PAC3200 Dashboard</title>
+	<link rel="stylesheet" href="/static/styles.css">
+	<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+	<header class="topbar">
+		<h1>PAC3200 Dashboard</h1>
+		<div id="status" class="status">Connecting…</div>
+	</header>
+
+	<main class="container">
+		<section class="cards">
+			<div class="card">
+				<div class="label">V1-N</div>
+				<div id="v1" class="value">--</div>
+				<div class="unit">V</div>
+			</div>
+			<div class="card">
+				<div class="label">V2-N</div>
+				<div id="v2" class="value">--</div>
+				<div class="unit">V</div>
+			</div>
+			<div class="card">
+				<div class="label">V3-N</div>
+				<div id="v3" class="value">--</div>
+				<div class="unit">V</div>
+			</div>
+			<div class="card">
+				<div class="label">Total Active Power</div>
+				<div id="p_total" class="value">--</div>
+				<div class="unit">W</div>
+			</div>
+			<div class="card">
+				<div class="label">Frequency</div>
+				<div id="freq" class="value">--</div>
+				<div class="unit">Hz</div>
+			</div>
+		</section>
+
+		<section class="charts">
+			<div class="chart">
+				<h3>Phase Voltages</h3>
+				<canvas id="voltChart"></canvas>
+			</div>
+			<div class="chart">
+				<h3>Phase Currents</h3>
+				<canvas id="currChart"></canvas>
+			</div>
+		</section>
+	</main>
+
+	<footer class="footer">
+		<div>DB: <span id="dbName">-</span></div>
+		<div>Device: <span id="device">-</span></div>
+		<div>Logging: <span id="logging">-</span></div>
+		<button id="collectBtn">Collect Now</button>
+		<button id="toggleLoggingBtn">Start Logging</button>
+	</footer>
+
+	<script src="/static/app.js"></script>
+</body>
+</html>
