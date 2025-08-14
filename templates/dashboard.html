@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PAC3200 Electrical Monitoring Dashboard</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/date-fns@2.29.0/index.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@2.0.1/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        body {
+            background-color: #f8f9fa;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        .navbar {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .card {
+            border: none;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            transition: transform 0.2s ease-in-out;
+        }
+        
+        .card:hover {
+            transform: translateY(-2px);
+        }
+        
+        .metric-card {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+        }
+        
+        .voltage-card {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+        }
+        
+        .current-card {
+            background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+            color: white;
+        }
+        
+        .power-card {
+            background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+            color: white;
+        }
+        
+        .frequency-card {
+            background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+            color: #333;
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        
+        .status-connected {
+            background-color: #28a745;
+            animation: pulse 2s infinite;
+        }
+        
+        .status-disconnected {
+            background-color: #dc3545;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        
+        .chart-container {
+            position: relative;
+            height: 300px;
+            margin: 20px 0;
+        }
+        
+        .gauge-container {
+            position: relative;
+            height: 200px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .last-updated {
+            font-size: 0.9em;
+            color: #6c757d;
+            text-align: center;
+            margin-top: 10px;
+        }
+        
+        .control-panel {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .btn-custom {
+            border-radius: 25px;
+            padding: 10px 25px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-start {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            color: white;
+        }
+        
+        .btn-stop {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            border: none;
+            color: white;
+        }
+        
+        .table-responsive {
+            border-radius: 15px;
+            overflow: hidden;
+        }
+        
+        .table th {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            font-weight: 500;
+        }
+        
+        .table td {
+            vertical-align: middle;
+            border-color: #dee2e6;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #6c757d;
+        }
+        
+        .metric-value {
+            font-size: 2rem;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .metric-label {
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+        
+        .phase-voltages {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 15px;
+        }
+        
+        .phase-item {
+            text-align: center;
+        }
+        
+        .phase-value {
+            font-size: 1.2rem;
+            font-weight: bold;
+        }
+        
+        .phase-label {
+            font-size: 0.8rem;
+            opacity: 0.8;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-dark">
+        <div class="container-fluid">
+            <span class="navbar-brand mb-0 h1">
+                <i class="fas fa-bolt me-2"></i>
+                PAC3200 Electrical Monitoring Dashboard
+            </span>
+            <div class="d-flex align-items-center">
+                <span class="text-white me-3">
+                    <span id="status-indicator" class="status-indicator status-disconnected"></span>
+                    <span id="connection-status">Disconnected</span>
+                </span>
+                <span class="text-white" id="current-time"></span>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid mt-4">
+        <!-- Control Panel -->
+        <div class="control-panel">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h5 class="mb-2">
+                        <i class="fas fa-cogs me-2"></i>
+                        Data Collection Control
+                    </h5>
+                    <p class="text-muted mb-0">
+                        Manage real-time data collection from SENTRON PAC3200
+                    </p>
+                </div>
+                <div class="col-md-4 text-end">
+                    <button id="start-collection" class="btn btn-custom btn-start me-2">
+                        <i class="fas fa-play me-2"></i>Start Collection
+                    </button>
+                    <button id="stop-collection" class="btn btn-custom btn-stop">
+                        <i class="fas fa-stop me-2"></i>Stop Collection
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Key Metrics Cards -->
+        <div class="row mb-4">
+            <div class="col-lg-3 col-md-6 mb-3">
+                <div class="card voltage-card">
+                    <div class="card-body text-center">
+                        <div class="metric-value" id="avg-voltage">---</div>
+                        <div class="metric-label">Average Voltage (V)</div>
+                        <div class="phase-voltages">
+                            <div class="phase-item">
+                                <div class="phase-value" id="v1-voltage">---</div>
+                                <div class="phase-label">V1-N</div>
+                            </div>
+                            <div class="phase-item">
+                                <div class="phase-value" id="v2-voltage">---</div>
+                                <div class="phase-label">V2-N</div>
+                            </div>
+                            <div class="phase-item">
+                                <div class="phase-value" id="v3-voltage">---</div>
+                                <div class="phase-label">V3-N</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-3 col-md-6 mb-3">
+                <div class="card current-card">
+                    <div class="card-body text-center">
+                        <div class="metric-value" id="avg-current">---</div>
+                        <div class="metric-label">Average Current (A)</div>
+                        <div class="phase-voltages">
+                            <div class="phase-item">
+                                <div class="phase-value" id="l1-current">---</div>
+                                <div class="phase-label">L1</div>
+                            </div>
+                            <div class="phase-item">
+                                <div class="phase-value" id="l2-current">---</div>
+                                <div class="phase-label">L2</div>
+                            </div>
+                            <div class="phase-item">
+                                <div class="phase-value" id="l3-current">---</div>
+                                <div class="phase-label">L3</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-3 col-md-6 mb-3">
+                <div class="card power-card">
+                    <div class="card-body text-center">
+                        <div class="metric-value" id="total-power">---</div>
+                        <div class="metric-label">Total Active Power (W)</div>
+                        <div class="mt-3">
+                            <small>
+                                <div>Reactive: <span id="reactive-power">---</span> VAR</div>
+                                <div>Apparent: <span id="apparent-power">---</span> VA</div>
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-3 col-md-6 mb-3">
+                <div class="card frequency-card">
+                    <div class="card-body text-center">
+                        <div class="metric-value" id="frequency">---</div>
+                        <div class="metric-label">Frequency (Hz)</div>
+                        <div class="mt-3">
+                            <small>
+                                <div>Power Factor: <span id="power-factor">---</span></div>
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts Row -->
+        <div class="row mb-4">
+            <div class="col-lg-6 mb-3">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-chart-line me-2"></i>
+                            Voltage Trends (24 Hours)
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container">
+                            <canvas id="voltage-chart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-6 mb-3">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-chart-line me-2"></i>
+                            Current Trends (24 Hours)
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container">
+                            <canvas id="current-chart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mb-4">
+            <div class="col-lg-6 mb-3">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-chart-area me-2"></i>
+                            Power Consumption (24 Hours)
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container">
+                            <canvas id="power-chart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-6 mb-3">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-chart-line me-2"></i>
+                            Frequency & Power Factor
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container">
+                            <canvas id="frequency-chart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Readings Table -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-table me-2"></i>
+                            Recent Readings
+                        </h5>
+                        <button id="refresh-table" class="btn btn-outline-primary btn-sm">
+                            <i class="fas fa-sync-alt me-1"></i>Refresh
+                        </button>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-striped table-hover mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Timestamp</th>
+                                        <th>V1-N (V)</th>
+                                        <th>V2-N (V)</th>
+                                        <th>V3-N (V)</th>
+                                        <th>L1 (A)</th>
+                                        <th>L2 (A)</th>
+                                        <th>L3 (A)</th>
+                                        <th>Power (W)</th>
+                                        <th>Freq (Hz)</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="readings-table-body">
+                                    <tr>
+                                        <td colspan="9" class="loading">
+                                            <i class="fas fa-spinner fa-spin me-2"></i>
+                                            Loading data...
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Last Updated Info -->
+        <div class="last-updated" id="last-updated">
+            Last updated: Never
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Dashboard JavaScript -->
+    <script>
+        // Global variables
+        let voltageChart, currentChart, powerChart, frequencyChart;
+        let isCollecting = false;
+        let updateInterval;
+
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeCharts();
+            updateCurrentTime();
+            checkCollectionStatus();
+            loadInitialData();
+            
+            // Set up event listeners
+            document.getElementById('start-collection').addEventListener('click', startCollection);
+            document.getElementById('stop-collection').addEventListener('click', stopCollection);
+            document.getElementById('refresh-table').addEventListener('click', loadRecentReadings);
+            
+            // Start periodic updates
+            setInterval(updateCurrentTime, 1000);
+            setInterval(updateDashboard, 10000); // Update every 10 seconds
+        });
+
+        function updateCurrentTime() {
+            const now = new Date();
+            document.getElementById('current-time').textContent = now.toLocaleString();
+        }
+
+        function checkCollectionStatus() {
+            fetch('/api/collection_status')
+                .then(response => response.json())
+                .then(data => {
+                    isCollecting = data.is_collecting;
+                    updateConnectionStatus(isCollecting);
+                })
+                .catch(error => {
+                    console.error('Error checking collection status:', error);
+                    updateConnectionStatus(false);
+                });
+        }
+
+        function updateConnectionStatus(connected) {
+            const indicator = document.getElementById('status-indicator');
+            const status = document.getElementById('connection-status');
+            
+            if (connected) {
+                indicator.className = 'status-indicator status-connected';
+                status.textContent = 'Connected & Collecting';
+            } else {
+                indicator.className = 'status-indicator status-disconnected';
+                status.textContent = 'Disconnected';
+            }
+        }
+
+        function startCollection() {
+            fetch('/api/start_collection')
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Start collection response:', data);
+                    if (data.status === 'started' || data.status === 'already_running') {
+                        isCollecting = true;
+                        updateConnectionStatus(true);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error starting collection:', error);
+                    alert('Failed to start data collection. Check console for details.');
+                });
+        }
+
+        function stopCollection() {
+            fetch('/api/stop_collection')
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Stop collection response:', data);
+                    if (data.status === 'stopped' || data.status === 'not_running') {
+                        isCollecting = false;
+                        updateConnectionStatus(false);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error stopping collection:', error);
+                });
+        }
+
+        function loadInitialData() {
+            loadLatestData();
+            loadRecentReadings();
+            loadHistoricalData();
+        }
+
+        function updateDashboard() {
+            loadLatestData();
+            loadRecentReadings();
+            
+            // Update charts every minute
+            if (Date.now() % 60000 < 10000) {
+                loadHistoricalData();
+            }
+        }
+
+        function loadLatestData() {
+            fetch('/api/latest_data')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        console.error('Error loading latest data:', data.error);
+                        return;
+                    }
+                    
+                    updateMetricCards(data);
+                    updateLastUpdated(data.timestamp);
+                })
+                .catch(error => {
+                    console.error('Error loading latest data:', error);
+                });
+        }
+
+        function updateMetricCards(data) {
+            // Voltage
+            const avgVoltage = ((data.V1_N_Voltage || 0) + (data.V2_N_Voltage || 0) + (data.V3_N_Voltage || 0)) / 3;
+            document.getElementById('avg-voltage').textContent = avgVoltage.toFixed(1);
+            document.getElementById('v1-voltage').textContent = (data.V1_N_Voltage || 0).toFixed(1);
+            document.getElementById('v2-voltage').textContent = (data.V2_N_Voltage || 0).toFixed(1);
+            document.getElementById('v3-voltage').textContent = (data.V3_N_Voltage || 0).toFixed(1);
+            
+            // Current
+            const avgCurrent = ((data.L1_Current || 0) + (data.L2_Current || 0) + (data.L3_Current || 0)) / 3;
+            document.getElementById('avg-current').textContent = avgCurrent.toFixed(2);
+            document.getElementById('l1-current').textContent = (data.L1_Current || 0).toFixed(2);
+            document.getElementById('l2-current').textContent = (data.L2_Current || 0).toFixed(2);
+            document.getElementById('l3-current').textContent = (data.L3_Current || 0).toFixed(2);
+            
+            // Power
+            document.getElementById('total-power').textContent = (data.Total_Active_Power || 0).toFixed(0);
+            document.getElementById('reactive-power').textContent = (data.Total_Reactive_Power || 0).toFixed(0);
+            document.getElementById('apparent-power').textContent = (data.Total_Apparent_Power || 0).toFixed(0);
+            
+            // Frequency and Power Factor
+            document.getElementById('frequency').textContent = (data.Frequency || 0).toFixed(2);
+            document.getElementById('power-factor').textContent = (data.Total_Power_Factor || 0).toFixed(3);
+        }
+
+        function updateLastUpdated(timestamp) {
+            if (timestamp) {
+                const date = new Date(timestamp);
+                document.getElementById('last-updated').textContent = 
+                    `Last updated: ${date.toLocaleString()}`;
+            }
+        }
+
+        function loadRecentReadings() {
+            fetch('/api/recent_readings?limit=20')
+                .then(response => response.json())
+                .then(data => {
+                    const tbody = document.getElementById('readings-table-body');
+                    tbody.innerHTML = '';
+                    
+                    if (data.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted">No data available</td></tr>';
+                        return;
+                    }
+                    
+                    data.forEach(reading => {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td>${new Date(reading.timestamp).toLocaleString()}</td>
+                            <td>${(reading.V1_N_Voltage || 0).toFixed(1)}</td>
+                            <td>${(reading.V2_N_Voltage || 0).toFixed(1)}</td>
+                            <td>${(reading.V3_N_Voltage || 0).toFixed(1)}</td>
+                            <td>${(reading.L1_Current || 0).toFixed(2)}</td>
+                            <td>${(reading.L2_Current || 0).toFixed(2)}</td>
+                            <td>${(reading.L3_Current || 0).toFixed(2)}</td>
+                            <td>${(reading.Total_Active_Power || 0).toFixed(0)}</td>
+                            <td>${(reading.Frequency || 0).toFixed(2)}</td>
+                        `;
+                        tbody.appendChild(row);
+                    });
+                })
+                .catch(error => {
+                    console.error('Error loading recent readings:', error);
+                    document.getElementById('readings-table-body').innerHTML = 
+                        '<tr><td colspan="9" class="text-center text-danger">Error loading data</td></tr>';
+                });
+        }
+
+        function loadHistoricalData() {
+            fetch('/api/historical_data?hours=24&limit=100')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.length === 0) return;
+                    
+                    // Reverse data to show oldest first
+                    data.reverse();
+                    
+                    const timestamps = data.map(d => new Date(d.timestamp));
+                    
+                    updateChart(voltageChart, timestamps, [
+                        { label: 'V1-N', data: data.map(d => d.V1_N_Voltage), color: 'rgb(255, 99, 132)' },
+                        { label: 'V2-N', data: data.map(d => d.V2_N_Voltage), color: 'rgb(54, 162, 235)' },
+                        { label: 'V3-N', data: data.map(d => d.V3_N_Voltage), color: 'rgb(255, 205, 86)' }
+                    ]);
+                    
+                    updateChart(currentChart, timestamps, [
+                        { label: 'L1', data: data.map(d => d.L1_Current), color: 'rgb(75, 192, 192)' },
+                        { label: 'L2', data: data.map(d => d.L2_Current), color: 'rgb(153, 102, 255)' },
+                        { label: 'L3', data: data.map(d => d.L3_Current), color: 'rgb(255, 159, 64)' }
+                    ]);
+                    
+                    updateChart(powerChart, timestamps, [
+                        { label: 'Active Power', data: data.map(d => d.Total_Active_Power), color: 'rgb(255, 99, 132)' },
+                        { label: 'Reactive Power', data: data.map(d => d.Total_Reactive_Power), color: 'rgb(54, 162, 235)' },
+                        { label: 'Apparent Power', data: data.map(d => d.Total_Apparent_Power), color: 'rgb(255, 205, 86)' }
+                    ]);
+                    
+                    updateChart(frequencyChart, timestamps, [
+                        { label: 'Frequency', data: data.map(d => d.Frequency), color: 'rgb(75, 192, 192)' },
+                        { label: 'Power Factor', data: data.map(d => d.Total_Power_Factor), color: 'rgb(153, 102, 255)', yAxisID: 'y1' }
+                    ]);
+                })
+                .catch(error => {
+                    console.error('Error loading historical data:', error);
+                });
+        }
+
+        function initializeCharts() {
+            const commonOptions = {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    intersect: false,
+                    mode: 'index'
+                },
+                scales: {
+                    x: {
+                        type: 'time',
+                        time: {
+                            unit: 'hour',
+                            displayFormats: {
+                                hour: 'MMM dd HH:mm'
+                            }
+                        }
+                    },
+                    y: {
+                        beginAtZero: false
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top'
+                    }
+                }
+            };
+
+            // Voltage Chart
+            voltageChart = new Chart(document.getElementById('voltage-chart'), {
+                type: 'line',
+                data: { datasets: [] },
+                options: {
+                    ...commonOptions,
+                    scales: {
+                        ...commonOptions.scales,
+                        y: {
+                            ...commonOptions.scales.y,
+                            title: { display: true, text: 'Voltage (V)' }
+                        }
+                    }
+                }
+            });
+
+            // Current Chart
+            currentChart = new Chart(document.getElementById('current-chart'), {
+                type: 'line',
+                data: { datasets: [] },
+                options: {
+                    ...commonOptions,
+                    scales: {
+                        ...commonOptions.scales,
+                        y: {
+                            ...commonOptions.scales.y,
+                            title: { display: true, text: 'Current (A)' }
+                        }
+                    }
+                }
+            });
+
+            // Power Chart
+            powerChart = new Chart(document.getElementById('power-chart'), {
+                type: 'line',
+                data: { datasets: [] },
+                options: {
+                    ...commonOptions,
+                    scales: {
+                        ...commonOptions.scales,
+                        y: {
+                            ...commonOptions.scales.y,
+                            title: { display: true, text: 'Power (W/VAR/VA)' }
+                        }
+                    }
+                }
+            });
+
+            // Frequency Chart
+            frequencyChart = new Chart(document.getElementById('frequency-chart'), {
+                type: 'line',
+                data: { datasets: [] },
+                options: {
+                    ...commonOptions,
+                    scales: {
+                        ...commonOptions.scales,
+                        y: {
+                            ...commonOptions.scales.y,
+                            title: { display: true, text: 'Frequency (Hz)' }
+                        },
+                        y1: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            title: { display: true, text: 'Power Factor' },
+                            grid: { drawOnChartArea: false }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateChart(chart, timestamps, datasets) {
+            chart.data.labels = timestamps;
+            chart.data.datasets = datasets.map(dataset => ({
+                label: dataset.label,
+                data: dataset.data,
+                borderColor: dataset.color,
+                backgroundColor: dataset.color + '20',
+                fill: false,
+                tension: 0.1,
+                yAxisID: dataset.yAxisID || 'y'
+            }));
+            chart.update('none');
+        }
+    </script>
+</body>
+</html>
